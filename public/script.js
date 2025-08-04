@@ -6,11 +6,53 @@ let socket = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    checkAuthentication();
+});
+
+// Authentication functions
+async function checkAuthentication() {
+    try {
+        const response = await fetch('/api/auth-status');
+        const data = await response.json();
+        
+        if (!data.authEnabled) {
+            // Auth is disabled, proceed normally
+            initializeApp();
+            return;
+        }
+        
+        if (!data.authenticated) {
+            // Not authenticated, redirect to login
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        // Authenticated, proceed with app
+        initializeApp();
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        // If auth check fails, redirect to login
+        window.location.href = '/login.html';
+    }
+}
+
+async function logout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+    } catch (error) {
+        console.error('Logout failed:', error);
+        // Force redirect anyway
+        window.location.href = '/login.html';
+    }
+}
+
+function initializeApp() {
     initializeSocket();
     loadFiles();
     setupEventListeners();
     setupDragAndDrop();
-});
+}
 
 // Initialize Socket.IO connection (simplified version)
 function initializeSocket() {

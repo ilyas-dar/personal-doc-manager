@@ -3,5 +3,5 @@ services:
     name: personal-doc-manager
     env: node
     buildCommand: npm install
-    startCommand: node simple-server.js
+    startCommand: node fixed-server.js
     plan: free 
