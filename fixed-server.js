@@ -293,48 +293,49 @@ const server = http.createServer((req, res) => {
             });
             
             req.on('end', () => {
-            try {
-                const contentType = req.headers['content-type'];
-                const boundary = contentType.split('boundary=')[1];
-                const parsed = parseMultipartData(body, boundary, contentType);
-                
-                if (parsed.file) {
-                    const fileId = generateId();
-                    const ext = path.extname(parsed.file.name);
-                    const filename = fileId + ext;
-                    const filePath = path.join(uploadsDir, filename);
+                try {
+                    const contentType = req.headers['content-type'];
+                    const boundary = contentType.split('boundary=')[1];
+                    const parsed = parseMultipartData(body, boundary, contentType);
                     
-                    // Save file with proper binary handling
-                    fs.writeFileSync(filePath, parsed.file.data);
-                    
-                    // Store metadata
-                    fileMetadata[fileId] = {
-                        id: fileId,
-                        originalName: parsed.file.name,
-                        filename: filename,
-                        fileType: parsed.file.type,
-                        fileSize: fs.statSync(filePath).size,
-                        uploadDate: new Date().toISOString(),
-                        textContent: '',
-                        hasThumbnail: false
-                    };
-                    
-                    saveMetadata();
-                    
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
-                        success: true,
-                        file: fileMetadata[fileId]
-                    }));
-                } else {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'No file uploaded' }));
+                    if (parsed.file) {
+                        const fileId = generateId();
+                        const ext = path.extname(parsed.file.name);
+                        const filename = fileId + ext;
+                        const filePath = path.join(uploadsDir, filename);
+                        
+                        // Save file with proper binary handling
+                        fs.writeFileSync(filePath, parsed.file.data);
+                        
+                        // Store metadata
+                        fileMetadata[fileId] = {
+                            id: fileId,
+                            originalName: parsed.file.name,
+                            filename: filename,
+                            fileType: parsed.file.type,
+                            fileSize: fs.statSync(filePath).size,
+                            uploadDate: new Date().toISOString(),
+                            textContent: '',
+                            hasThumbnail: false
+                        };
+                        
+                        saveMetadata();
+                        
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({
+                            success: true,
+                            file: fileMetadata[fileId]
+                        }));
+                    } else {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'No file uploaded' }));
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Upload failed' }));
                 }
-            } catch (error) {
-                console.error('Upload error:', error);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Upload failed' }));
-            }
+            });
         });
         return;
     }
