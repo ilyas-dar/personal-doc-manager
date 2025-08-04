@@ -2,9 +2,9 @@
   "name": "personal-doc-manager",
   "version": "1.0.0",
   "description": "Personal document management system with chat interface",
-  "main": "server.js",
+  "main": "simple-server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node simple-server.js",
     "dev": "nodemon server.js",
     "build": "echo 'No build step required'",
     "test": "echo 'No tests specified'"

@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: personal-doc-manager
+    env: node
+    buildCommand: npm install
+    startCommand: node simple-server.js
+    plan: free 
