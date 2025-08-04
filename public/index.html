@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Document Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Socket.IO removed for simplified version -->
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-folder-open"></i> Doc Manager</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="openUploadModal()">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Search your documents..." class="search-input">
+                <button class="search-btn" onclick="performSearch()">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Interface -->
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message">
+                    <i class="fas fa-robot"></i>
+                    <h3>Welcome to your Personal Document Manager!</h3>
+                    <p>I can help you find and manage your documents. Try asking:</p>
+                    <ul>
+                        <li>"Show me all PDF files"</li>
+                        <li>"Find documents about work"</li>
+                        <li>"Show recent uploads"</li>
+                        <li>"Delete the file named..."</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" placeholder="Ask me about your documents..." class="chat-input">
+                <button class="chat-send-btn" onclick="sendChatMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- File List -->
+        <div class="files-container" id="filesContainer">
+            <div class="files-header">
+                <h2>Your Documents</h2>
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="setView('grid')">
+                        <i class="fas fa-th"></i>
+                    </button>
+                    <button class="view-btn" onclick="setView('list')">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="files-grid" id="filesGrid">
+                <!-- Files will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Upload Modal -->
+        <div class="modal" id="uploadModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Upload Document</h3>
+                    <button class="close-btn" onclick="closeUploadModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag & drop files here or click to browse</p>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png,.gif,.webp,.txt,.doc,.docx" style="display: none;">
+                    </div>
+                    <div class="upload-progress" id="uploadProgress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p id="progressText">Uploading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Preview Modal -->
+        <div class="modal" id="previewModal">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3 id="previewTitle">File Preview</h3>
+                    <button class="close-btn" onclick="closePreviewModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="file-info" id="fileInfo">
+                        <!-- File info will be displayed here -->
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-primary" onclick="downloadFile()">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteFile()">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
