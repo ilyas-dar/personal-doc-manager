@@ -61,17 +61,64 @@ function generateId() {
 function getMimeType(filename) {
     const ext = path.extname(filename).toLowerCase();
     const mimeTypes = {
+        // Documents
         '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.txt': 'text/plain',
+        '.rtf': 'application/rtf',
+        
+        // Spreadsheets
         '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         '.xls': 'application/vnd.ms-excel',
+        '.csv': 'text/csv',
+        
+        // Images
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
         '.png': 'image/png',
         '.gif': 'image/gif',
         '.webp': 'image/webp',
-        '.txt': 'text/plain',
-        '.doc': 'application/msword',
-        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        '.bmp': 'image/bmp',
+        '.svg': 'image/svg+xml',
+        '.ico': 'image/x-icon',
+        
+        // Archives
+        '.zip': 'application/zip',
+        '.rar': 'application/vnd.rar',
+        '.7z': 'application/x-7z-compressed',
+        '.tar': 'application/x-tar',
+        '.gz': 'application/gzip',
+        
+        // Audio
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.ogg': 'audio/ogg',
+        '.m4a': 'audio/mp4',
+        
+        // Video
+        '.mp4': 'video/mp4',
+        '.avi': 'video/x-msvideo',
+        '.mov': 'video/quicktime',
+        '.wmv': 'video/x-ms-wmv',
+        '.flv': 'video/x-flv',
+        '.webm': 'video/webm',
+        
+        // Code
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.json': 'application/json',
+        '.xml': 'application/xml',
+        '.py': 'text/x-python',
+        '.java': 'text/x-java-source',
+        '.cpp': 'text/x-c++src',
+        '.c': 'text/x-csrc',
+        '.php': 'application/x-httpd-php',
+        
+        // Other
+        '.md': 'text/markdown',
+        '.log': 'text/plain'
     };
     return mimeTypes[ext] || 'application/octet-stream';
 }
@@ -119,7 +166,7 @@ function cleanupExpiredSessions() {
 setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
 
 // Parse multipart form data with proper binary handling
-function parseMultipartData(body, boundary, contentType) {
+function parseMultipartData(body, boundary) {
     const parts = body.split('--' + boundary);
     const result = {};
     
@@ -128,35 +175,51 @@ function parseMultipartData(body, boundary, contentType) {
             const lines = part.split('\r\n');
             let name = '';
             let filename = '';
-            let data = Buffer.alloc(0);
-            let isData = false;
             let contentType = '';
+            let dataStart = -1;
             
+            // Find the boundary between headers and data
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
+                if (line === '') {
+                    dataStart = i + 1;
+                    break;
+                }
                 
                 if (line.includes('name=')) {
-                    name = line.split('name="')[1].split('"')[0];
+                    const match = line.match(/name="([^"]+)"/);
+                    if (match) name = match[1];
                 }
                 if (line.includes('filename=')) {
-                    filename = line.split('filename="')[1].split('"')[0];
+                    const match = line.match(/filename="([^"]+)"/);
+                    if (match) filename = match[1];
                 }
                 if (line.includes('Content-Type:')) {
                     contentType = line.split('Content-Type: ')[1];
                 }
-                if (line === '') {
-                    isData = true;
-                    // Collect all remaining data as binary
-                    const remainingData = lines.slice(i + 1).join('\r\n');
-                    data = Buffer.from(remainingData, 'binary');
-                    break;
-                }
             }
             
-            if (name === 'file' && filename) {
+            if (name === 'file' && filename && dataStart > 0) {
+                // Extract binary data properly
+                const dataLines = lines.slice(dataStart);
+                let data = '';
+                
+                for (let i = 0; i < dataLines.length; i++) {
+                    if (dataLines[i] === '--' + boundary + '--') {
+                        break; // End of multipart data
+                    }
+                    if (i > 0) data += '\r\n';
+                    data += dataLines[i];
+                }
+                
+                // Remove trailing boundary if present
+                if (data.endsWith('--' + boundary + '--')) {
+                    data = data.slice(0, data.length - boundary.length - 6);
+                }
+                
                 result.file = {
                     name: filename,
-                    data: data,
+                    data: Buffer.from(data, 'binary'),
                     type: contentType || getMimeType(filename)
                 };
             }
@@ -296,7 +359,7 @@ const server = http.createServer((req, res) => {
                 try {
                     const contentType = req.headers['content-type'];
                     const boundary = contentType.split('boundary=')[1];
-                    const parsed = parseMultipartData(body, boundary, contentType);
+                    const parsed = parseMultipartData(body, boundary);
                     
                     if (parsed.file) {
                         const fileId = generateId();
@@ -333,7 +396,10 @@ const server = http.createServer((req, res) => {
                 } catch (error) {
                     console.error('Upload error:', error);
                     res.writeHead(500, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'Upload failed' }));
+                    res.end(JSON.stringify({ 
+                        error: 'Upload failed', 
+                        details: error.message 
+                    }));
                 }
             });
         });
@@ -353,16 +419,44 @@ const server = http.createServer((req, res) => {
             
             const filePath = path.join(uploadsDir, file.filename);
             if (fs.existsSync(filePath)) {
-                const fileStream = fs.createReadStream(filePath);
-                res.writeHead(200, {
-                    'Content-Type': file.fileType,
-                    'Content-Disposition': `attachment; filename="${file.originalName}"`,
-                    'Content-Length': file.fileSize
-                });
-                fileStream.pipe(res);
+                try {
+                    const stats = fs.statSync(filePath);
+                    const fileStream = fs.createReadStream(filePath);
+                    
+                    // Enhanced headers for better compatibility
+                    const headers = {
+                        'Content-Type': file.fileType,
+                        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+                        'Content-Length': stats.size,
+                        'Cache-Control': 'no-cache',
+                        'Accept-Ranges': 'bytes'
+                    };
+                    
+                    // Add specific headers for different file types
+                    if (file.fileType.startsWith('image/')) {
+                        headers['Content-Disposition'] = `inline; filename*=UTF-8''${encodeURIComponent(file.originalName)}`;
+                    }
+                    
+                    res.writeHead(200, headers);
+                    fileStream.pipe(res);
+                    
+                    // Handle stream errors
+                    fileStream.on('error', (error) => {
+                        console.error('File stream error:', error);
+                        if (!res.headersSent) {
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: 'File download failed' }));
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.error('Download error:', error);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'File download failed' }));
+                }
             } else {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'File not found' }));
+                res.end(JSON.stringify({ error: 'File not found on server' }));
             }
         });
         return;
@@ -389,11 +483,19 @@ const server = http.createServer((req, res) => {
                 saveMetadata();
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true }));
+                res.end(JSON.stringify({ success: true, message: 'File deleted successfully' }));
             } catch (error) {
                 console.error('Delete error:', error);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Delete failed' }));
+                // Even if there's an error, try to remove from metadata
+                try {
+                    delete fileMetadata[fileId];
+                    saveMetadata();
+                } catch (metaError) {
+                    console.error('Metadata cleanup error:', metaError);
+                }
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, message: 'File removed from database' }));
             }
         });
         return;

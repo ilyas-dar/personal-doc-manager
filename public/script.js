@@ -324,12 +324,13 @@ async function uploadFile(file) {
                 closeUploadModal();
             }, 1000);
         } else {
-            throw new Error('Upload failed');
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Upload failed');
         }
     } catch (error) {
         console.error('Upload error:', error);
         progressText.textContent = 'Upload failed';
-        showNotification('Upload failed', 'error');
+        showNotification('Upload failed: ' + (error.message || 'Unknown error'), 'error');
     }
 }
 
@@ -357,6 +358,16 @@ function openFilePreview(fileId) {
         `;
     }
     
+    // Add preview button for supported file types
+    let previewButton = '';
+    if (file.fileType.startsWith('image/') || file.fileType === 'text/plain' || file.fileType === 'application/pdf') {
+        previewButton = `
+            <button class="btn btn-primary" onclick="previewFile('${file.id}')" style="margin-right: 10px;">
+                <i class="fas fa-eye"></i> Preview
+            </button>
+        `;
+    }
+    
     info.innerHTML = `
         ${previewContent}
         <div class="file-details">
@@ -366,6 +377,15 @@ function openFilePreview(fileId) {
             <p><strong>Size:</strong> ${fileSize}</p>
             <p><strong>Uploaded:</strong> ${uploadDate}</p>
             ${file.textContent ? `<p><strong>Content Preview:</strong></p><div style="max-height: 100px; overflow-y: auto; background: #f7fafc; padding: 10px; border-radius: 5px; font-size: 12px;">${file.textContent.substring(0, 500)}${file.textContent.length > 500 ? '...' : ''}</div>` : ''}
+        </div>
+        <div class="file-actions">
+            ${previewButton}
+            <button class="btn btn-primary" onclick="downloadFile()">
+                <i class="fas fa-download"></i> Download
+            </button>
+            <button class="btn btn-danger" onclick="deleteFile()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
         </div>
     `;
     
@@ -380,12 +400,45 @@ function closePreviewModal() {
 function downloadFile() {
     if (!selectedFile) return;
     
-    const link = document.createElement('a');
-    link.href = `/api/download/${selectedFile.id}`;
-    link.download = selectedFile.originalName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+        const link = document.createElement('a');
+        link.href = `/api/download/${selectedFile.id}`;
+        link.download = selectedFile.originalName;
+        link.style.display = 'none';
+        
+        // Add timestamp to prevent caching issues
+        link.href += `?t=${Date.now()}`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('Download started!', 'success');
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification('Download failed. Please try again.', 'error');
+    }
+}
+
+function previewFile(fileId) {
+    const file = currentFiles.find(f => f.id === fileId);
+    if (!file) return;
+    
+    const previewUrl = `/api/download/${fileId}?t=${Date.now()}`;
+    
+    if (file.fileType.startsWith('image/')) {
+        // Open image in new tab
+        window.open(previewUrl, '_blank');
+    } else if (file.fileType === 'text/plain') {
+        // Open text file in new tab
+        window.open(previewUrl, '_blank');
+    } else if (file.fileType === 'application/pdf') {
+        // Open PDF in new tab
+        window.open(previewUrl, '_blank');
+    } else {
+        // For other file types, just download
+        downloadFile();
+    }
 }
 
 async function deleteFile() {
@@ -401,11 +454,13 @@ async function deleteFile() {
         });
         
         if (response.ok) {
+            const result = await response.json();
             closePreviewModal();
             removeFileFromList(selectedFile.id);
-            showNotification('File deleted successfully!', 'success');
+            showNotification(result.message || 'File deleted successfully!', 'success');
         } else {
-            throw new Error('Delete failed');
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Delete failed');
         }
     } catch (error) {
         console.error('Delete error:', error);
